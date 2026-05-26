@@ -3,6 +3,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
 import type { EmailSettings } from '../lib/types'
 import { wrapWithEmailLayout } from '../lib/templateEngine'
 
@@ -24,14 +25,17 @@ export default function ComposeEditor({ value, onChange }: ComposeEditorProps) {
     const load = async () => {
       setLoadingSettings(true)
       try {
-        const resp = await fetch('http://localhost:5173/api/settings')
+        const { data: settingsData, error } = await supabase
+          .from('email_settings')
+          .select('*')
+          .maybeSingle()
 
-        if (!resp.ok) {
+        if (error || !settingsData) {
           setSettings(null)
           return
         }
-        const json = (await resp.json()) as EmailSettings
-        setSettings(json)
+
+        setSettings(settingsData as EmailSettings)
       } catch {
         setSettings(null)
       } finally {
@@ -67,19 +71,28 @@ export default function ComposeEditor({ value, onChange }: ComposeEditorProps) {
       return
     }
 
-    const resp = await fetch(`http://localhost:5173/api/templates?key=${encodeURIComponent(templateKey)}`)
+    try {
+      const { data, error } = await supabase
+        .from('email_templates')
+        .select('html_content')
+        // Mevcut şemaya göre alan adı: template_key (repo server tarafında da template_key kullanılıyor)
+        // Eğer tabloda farklı isim varsa, tek noktadan güncellenir.
+        .eq('template_key', templateKey)
+        .maybeSingle()
 
-    if (!resp.ok) return
+      if (error || !data) return
+      const nextHtml = (data as { html_content?: string }).html_content ?? ''
 
-    const json = (await resp.json()) as { html_content?: string }
-    const nextHtml = json.html_content ?? ''
+      if (value.trim().length > 0) {
+        setConfirmClear(false)
+      }
 
-    if (value.trim().length > 0) {
-      setConfirmClear(false)
+      onChange(nextHtml)
+    } catch {
+      // sessizce başarısız
     }
-
-    onChange(nextHtml)
   }
+
 
   const effectiveMobileClass = previewMode === 'mobile' ? 'max-w-[375px] mx-auto' : 'max-w-none'
 

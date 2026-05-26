@@ -3,10 +3,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import type { EmailSettings, Recipient, SendResult } from '../lib/types'
+import { supabase } from '../lib/supabaseClient'
+import type { Recipient, SendResult } from '../lib/types'
 import RecipientInput from './RecipientInput'
 import ComposeEditor from './ComposeEditor'
 import { Loader2, Trash2 } from 'lucide-react'
+
+
+
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -68,10 +72,36 @@ export default function ComposeForm() {
   const [sendResult, setSendResult] = useState<SendResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+
+
   useEffect(() => {
     const load = async () => {
       try {
-        const resp = await fetch('http://localhost:5173/api/settings')
+        const { data, error } = await supabase
+          .from('email_settings')
+          .select('sender_name, sender_email')
+          .maybeSingle()
+
+        if (error || !data) return
+
+        setSenderInfo({
+          name: data.sender_name,
+          email: data.sender_email,
+        })
+      } catch {
+        // ignore
+      }
+    }
+
+    void load()
+  }, [])
+
+
+
+ {/*} useEffect(() => {
+    const load = async () => {
+      try {
+        const resp = await fetch('/api/settings')
 
         if (!resp.ok) throw new Error('Ayarlar yüklenemedi')
         const json = (await resp.json()) as EmailSettings
@@ -82,7 +112,7 @@ export default function ComposeForm() {
     }
 
     void load()
-  }, [])
+  }, [])*/}
 
   const canSend = useMemo(() => {
     if (isSending) return false
@@ -111,15 +141,22 @@ export default function ComposeForm() {
     setError(null)
   }
 
+
+
+
+
   const handleSend = async () => {
     if (!canSend) return
 
     setIsSending(true)
+
     setError(null)
     setSendResult(null)
 
     try {
+      // Brevo + manual_emails işlemleri server tarafında güvenli şekilde yapılmalı
       const toPayload: Array<{ email: string; name: string; type: Recipient['type'] }> = toRecipients.map((r) => ({
+
         email: r.email,
         name: r.name,
         type: r.type,
@@ -129,7 +166,7 @@ export default function ComposeForm() {
         ? ccRecipients.map((r) => ({ email: r.email, name: r.name }))
         : []
 
-      const resp = await fetch('http://localhost:5173/api/compose/send', {
+      const resp = await fetch('/api/compose/send', {
         method: 'POST',
 
         headers: { 'Content-Type': 'application/json' },
