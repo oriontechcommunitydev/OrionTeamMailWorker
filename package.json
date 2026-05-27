@@ -3,11 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
+  "start": "node server.js",  
+  "build": "vite build"
+},
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
     "@types/cors": "^2.8.19",
