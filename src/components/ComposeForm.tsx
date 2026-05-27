@@ -172,7 +172,6 @@ export default function ComposeForm() {
 
       const resp = await fetch('/api/compose/send', {
         method: 'POST',
-
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: toPayload,
@@ -182,13 +181,25 @@ export default function ComposeForm() {
         }),
       })
 
-      const json = (await resp.json()) as SendResult & { error?: string }
+      // ✅ Güvenli parse — boş response'a karşı koruma
+      const text = await resp.text()
 
-      if (!resp.ok) {
-        throw new Error(json.error ?? 'Gönderim başarısız')
+      if (!text || text.trim() === '') {
+        throw new Error('Sunucudan boş yanıt geldi')
       }
 
-      setSendResult(json)
+      let data: SendResult & { error?: string }
+      try {
+        data = JSON.parse(text) as SendResult & { error?: string }
+      } catch {
+        throw new Error(`Yanıt işlenemedi: ${text.slice(0, 200)}`)
+      }
+
+      if (!resp.ok) {
+        throw new Error(data.error ?? `HTTP ${resp.status}`)
+      }
+
+      setSendResult(data)
       handleClear()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gönderim hatası')

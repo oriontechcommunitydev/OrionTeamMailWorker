@@ -267,7 +267,7 @@ export default function ComposeEditor({ value, onChange }: ComposeEditorProps) {
           <div className={effectiveMobileClass}>
             <iframe
               title="Mail önizleme"
-              sandbox="allow-same-origin"
+              sandbox="allow-same-origin allow-scripts"
               className="w-full min-h-[500px] bg-white rounded-xl border border-gray-200"
               srcDoc={previewHtml}
             />

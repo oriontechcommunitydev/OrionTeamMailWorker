@@ -27,139 +27,175 @@ const bodySchema = z.object({
   sent_by: z.string().optional(),
 })
 
+export type ComposePayload = z.infer<typeof bodySchema>
+
+type SendResultItem = {
+  email: string
+  success: boolean
+  messageId?: string
+  error?: string
+}
+
 type SendResult = {
   success: boolean
   sent_count: number
   failed_count: number
-  results: Array<{
-    email: string
-    success: boolean
-    messageId?: string
-    error?: string
-  }>
+  results: SendResultItem[]
 }
 
 export const composeSendRouter = Router()
 
-composeSendRouter.post('/', async (req, res) => {
-  const parsed = bodySchema.safeParse(req.body)
-  if (!parsed.success) {
-    return res.status(400).json({ error: 'Invalid request body' })
-  }
+composeSendRouter.post('/compose/send', async (req, res) => {
+  try {
+    const body = req.body as unknown as ComposePayload
 
-  const { to, cc, subject, html_content, sent_by } = parsed.data
-
-  // Spec: toplam alıcı (to + cc) max 50
-  const totalRecipients = to.length + (cc?.length ?? 0)
-  if (totalRecipients > 50) {
-    return res.status(400).json({ error: 'Toplam alıcı max 50 olmalıdır' })
-  }
-
-  const settings = await (async () => {
-
-    try {
-      return await loadEmailSettings(supabase)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Settings load error'
-      throw new Error(message)
+    const parsed = bodySchema.safeParse(body)
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request body',
+      })
     }
-  })()
 
-  if (!settings.enabled) {
-    return res.status(503).json({ error: 'Mail sistemi devre dışı' })
-  }
+    const validatedBody = parsed.data
 
-  // manual_emails kaydı
-  const sender_name = settings.sender_name
-  const sender_email = settings.sender_email
-
-  const to_emails = to.map((r) => ({ email: r.email, name: r.name, type: r.type }))
-  const cc_emails = (cc ?? []).map((r) => ({ email: r.email, name: r.name }))
-
-  const { data: manualRow, error: manualErr } = await supabase
-    .from('manual_emails')
-    .insert({
-      sender_name,
-      sender_email,
-      to_emails,
-      cc_emails,
-      subject,
-      html_content,
-      status: 'pending',
-      brevo_message_ids: [],
-      error_message: null,
-      sent_by: sent_by ?? null,
-      sent_at: null,
-    })
-    .select('*')
-    .single()
-
-  if (manualErr || !manualRow) {
-    return res.status(500).json({ error: manualErr?.message ?? 'manual_emails insert error' })
-  }
-
-  const results: SendResult['results'] = []
-  const messageIds: string[] = []
-  const errors: string[] = []
-
-  for (const r of to) {
-    try {
-      const wrapped = wrapWithEmailLayout(html_content, settings)
-
-      const response = await sendEmail(
-        {
-          sender: { name: settings.sender_name, email: settings.sender_email },
-          to: [{ email: r.email, name: r.name }],
-          cc: cc?.length ? cc.map((x) => ({ email: x.email, name: x.name })) : undefined,
-          subject,
-          htmlContent: wrapped,
-        },
-        settings.brevo_api_key,
-      )
-
-      messageIds.push(response.messageId)
-      results.push({ email: r.email, success: true, messageId: response.messageId })
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Brevo send error'
-      errors.push(errorMessage)
-      results.push({ email: r.email, success: false, error: errorMessage })
+    // Validasyon
+    if (!validatedBody.to || validatedBody.to.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'En az bir alıcı gerekli',
+      })
     }
-  }
 
-  const sent_count = results.filter((x) => x.success).length
-  const failed_count = results.filter((x) => !x.success).length
+    if (!validatedBody.subject || validatedBody.subject.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Konu boş olamaz',
+      })
+    }
 
-  const status: 'sent' | 'failed' = failed_count === 0 ? 'sent' : sent_count === 0 ? 'failed' : 'sent'
+    if (!validatedBody.html_content || validatedBody.html_content.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'İçerik boş olamaz',
+      })
+    }
 
-  let finalErrorMessage: string | null = null
-  if (failed_count === 0) {
-    finalErrorMessage = null
-  } else if (sent_count > 0) {
-    // Spec: kısmi başarı
-    finalErrorMessage = 'Kısmi başarı'
-  } else {
-    finalErrorMessage = errors.slice(0, 3).join(' | ')
-  }
+    // Settings yükle
+    const settings = await loadEmailSettings(supabase)
+    if (!settings.enabled) {
+      return res.status(503).json({
+        success: false,
+        error: 'Mail sistemi devre dışı',
+      })
+    }
 
+    // manual_emails'e kaydet
+    const { data: inserted, error: insertError } = await supabase
+      .from('manual_emails')
+      .insert({
+        sender_name: settings.sender_name,
+        sender_email: settings.sender_email,
+        to_emails: validatedBody.to.map((r) => ({
+          email: r.email,
+          name: r.name,
+          type: r.type,
+        })),
+        cc_emails: (validatedBody.cc ?? []).map((c) => ({
+          email: c.email,
+          name: c.name,
+        })),
+        subject: validatedBody.subject,
+        html_content: validatedBody.html_content,
+        status: 'pending',
+        brevo_message_ids: [],
+        sent_by: validatedBody.sent_by ?? null,
+      })
+      .select()
+      .single()
 
-  await supabase
-    .from('manual_emails')
-    .update({
-      status,
-      brevo_message_ids: messageIds,
-      error_message: finalErrorMessage,
-      sent_by: sent_by ?? null,
-      sent_at: new Date().toISOString(),
+    if (insertError || !inserted) {
+      return res.status(500).json({
+        success: false,
+        error: insertError?.message ?? 'Kayıt oluşturulamadı',
+      })
+    }
+
+    // Her alıcıya ayrı Brevo isteği
+    const results: SendResultItem[] = []
+    const messageIds: string[] = []
+
+    const wrappedHtml = wrapWithEmailLayout(validatedBody.html_content, settings)
+
+    for (const recipient of validatedBody.to) {
+      try {
+        const brevoResp = await sendEmail(
+          {
+            sender: {
+              name: settings.sender_name,
+              email: settings.sender_email,
+            },
+            to: [{ email: recipient.email, name: recipient.name }],
+            cc: (validatedBody.cc ?? []).map((c) => ({
+              email: c.email,
+              name: c.name,
+            })),
+            subject: validatedBody.subject,
+            htmlContent: wrappedHtml,
+          },
+          settings.brevo_api_key,
+        )
+
+        messageIds.push(brevoResp.messageId)
+        results.push({
+          email: recipient.email,
+          success: true,
+          messageId: brevoResp.messageId,
+        })
+      } catch (err) {
+        results.push({
+          email: recipient.email,
+          success: false,
+          error: err instanceof Error ? err.message : 'Gönderilemedi',
+        })
+      }
+    }
+
+    // Sonuçları hesapla
+    const sentCount = results.filter((r) => r.success).length
+    const failedCount = results.filter((r) => !r.success).length
+
+    // manual_emails güncelle
+    const newStatus =
+      failedCount === 0 ? 'sent' : sentCount === 0 ? 'failed' : 'sent'
+
+    await supabase
+      .from('manual_emails')
+      .update({
+        status: newStatus,
+        brevo_message_ids: messageIds,
+        error_message:
+          failedCount > 0 ? `${failedCount} alıcıya gönderilemedi` : null,
+        sent_at: new Date().toISOString(),
+      })
+      .eq('id', inserted.id)
+
+    // Her zaman JSON dön
+    return res.status(200).json({
+      success: failedCount === 0,
+      sent_count: sentCount,
+      failed_count: failedCount,
+      results,
     })
-    .eq('id', manualRow.id)
-
-  const responseBody: SendResult = {
-    success: failed_count === 0,
-    sent_count,
-    failed_count,
-    results,
+  } catch (err) {
+    // Beklenmeyen hata — her zaman JSON dön
+    return res.status(500).json({
+      success: false,
+      error: err instanceof Error ? err.message : 'Sunucu hatası',
+      sent_count: 0,
+      failed_count: 0,
+      results: [],
+    })
   }
-
-  return res.status(200).json(responseBody)
 })
 

@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { ManualEmail } from '../lib/types'
+import { supabase } from '../lib/supabaseClient'
 import { ChevronLeft, ChevronRight, Loader2, Eye, X } from 'lucide-react'
 
 const PAGE_LIMIT = 20
@@ -38,13 +39,22 @@ export default function MailHistoryTable() {
   const fetchData = async (p: number) => {
     setLoading(true)
     try {
-      const resp = await fetch(`/api/compose/history?page=${p}&limit=${limit}`)
-      if (!resp.ok) throw new Error('Geçmiş yüklenemedi')
-      const json = (await resp.json()) as { data: ManualEmail[]; total: number; page: number; limit: number }
-      setData(json.data ?? [])
-      setTotal(json.total ?? 0)
-      setPage(json.page ?? p)
-    } catch {
+      const from = (p - 1) * limit
+      const to = p * limit - 1
+
+      const { data: rows, count, error } = await supabase
+        .from('manual_emails')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (error) throw new Error(error.message)
+
+      setData((rows ?? []) as ManualEmail[])
+      setTotal(count ?? 0)
+      setPage(p)
+    } catch (err) {
+      console.error('Geçmiş yüklenemedi:', err)
       setData([])
       setTotal(0)
     } finally {
