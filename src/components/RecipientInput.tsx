@@ -50,7 +50,8 @@ export default function RecipientInput({ value, onChange, placeholder }: Recipie
   }, [query])
 
   useEffect(() => {
-    if (query.trim().length < 2) {
+    const trimmed = query.trim()
+    if (trimmed.length < 2) {
       setResults([])
       setOpen(false)
       return
@@ -59,12 +60,46 @@ export default function RecipientInput({ value, onChange, placeholder }: Recipie
     const t = window.setTimeout(async () => {
       setLoading(true)
       try {
-        const resp = await fetch(`/api/recipients?q=${encodeURIComponent(query.trim())}&type=all`)
-        if (!resp.ok) {
-          throw new Error(`Arama başarısız (${resp.status})`)
-        }
-        const json = (await resp.json()) as { data: RecipientSearchResult[] }
-        setResults(json.data ?? [])
+        const pattern = `%${trimmed}%`
+
+        const [{ data: memberRows, error: memberErr }, { data: speakerRows, error: speakerErr }] = await Promise.all([
+          supabase
+            .from('members')
+            .select('id,name,email,avatar,job_title')
+            .or(`name.ilike.${pattern},email.ilike.${pattern}`)
+            .not('email', 'is', null)
+            .eq('is_active', true)
+            .limit(5),
+          supabase
+            .from('speakers')
+            .select('id,full_name,email,image_url,title,company')
+            .or(`full_name.ilike.${pattern},email.ilike.${pattern}`)
+            .not('email', 'is', null)
+            .limit(5),
+        ])
+
+        if (memberErr) throw new Error(memberErr.message)
+        if (speakerErr) throw new Error(speakerErr.message)
+
+        const memberResults: RecipientSearchResult[] = (memberRows ?? []).map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          email: m.email,
+          type: 'member',
+          subtitle: m.job_title ?? '',
+          avatar: m.avatar ?? null,
+        }))
+
+        const speakerResults: RecipientSearchResult[] = (speakerRows ?? []).map((s: any) => ({
+          id: s.id,
+          name: s.full_name,
+          email: s.email,
+          type: 'speaker',
+          subtitle: `${s.title ?? ''}${s.company ? ` · ${s.company}` : ''}`.trim(),
+          avatar: s.image_url ?? null,
+        }))
+
+        setResults([...memberResults, ...speakerResults])
         setOpen(true)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Arama hatası')

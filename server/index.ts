@@ -1,7 +1,6 @@
 import express from 'express'
 import cors from 'cors'
 
-import { recipientsRouter } from './routes/recipients'
 import { composeSendRouter } from './routes/composeSend'
 import { composeHistoryRouter } from './routes/composeHistory'
 
@@ -15,7 +14,6 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ ok: true })
 })
 
-app.use('/api/recipients', recipientsRouter)
 app.use('/api/compose/send', composeSendRouter)
 app.use('/api/compose/history', composeHistoryRouter)
 
