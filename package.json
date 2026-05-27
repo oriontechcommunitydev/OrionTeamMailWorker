@@ -5,9 +5,11 @@
   "type": "module",
 
   "scripts": {
-  "start": "node server.js",  
-  "build": "vite build"
-},
+    "dev"         : "vite",
+    "build"       : "vite build && node build-server.mjs",
+    "build:server": "node build-server.mjs",
+    "start"       : "node server.cjs"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
     "@types/cors": "^2.8.19",
