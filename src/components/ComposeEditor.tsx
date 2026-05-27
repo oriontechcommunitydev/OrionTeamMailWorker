@@ -25,17 +25,33 @@ export default function ComposeEditor({ value, onChange }: ComposeEditorProps) {
     const load = async () => {
       setLoadingSettings(true)
       try {
-        const { data: settingsData, error } = await supabase
+        const { data, error } = await supabase
           .from('email_settings')
-          .select('*')
-          .maybeSingle()
+          .select('setting_key, setting_value')
 
-        if (error || !settingsData) {
+        if (error || !data) {
           setSettings(null)
           return
         }
 
-        setSettings(settingsData as EmailSettings)
+        const map = data.reduce<Record<string, string>>((acc, row) => {
+          acc[row.setting_key] = row.setting_value ?? ''
+          return acc
+        }, {})
+
+        const next: EmailSettings = {
+          brevo_api_key: map['brevo_api_key'] ?? '',
+          sender_email: map['sender_email'] ?? '',
+          sender_name: map['sender_name'] ?? '',
+          daily_limit: parseInt(map['daily_limit'] ?? '300', 10),
+          retry_limit: parseInt(map['retry_limit'] ?? '3', 10),
+          enabled: map['enabled'] === 'true',
+          sender_logo_url: map['sender_logo_url'] ?? null,
+          sender_website: map['sender_website'] ?? null,
+          sender_address: map['sender_address'] ?? null,
+        }
+
+        setSettings(next)
       } catch {
         setSettings(null)
       } finally {

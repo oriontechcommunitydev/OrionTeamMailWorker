@@ -101,14 +101,17 @@ export default function SettingsPanel() {
   async function loadSettings() {
     setLoading(true)
     setError(null)
-    const { data, error: err } = await supabase.from('email_settings').select('*')
-    if (err) {
-      setError(err.message)
+    const { data, error: err } = await supabase
+      .from('email_settings')
+      .select('setting_key, setting_value')
+
+    if (err || !data) {
+      setError(err?.message ?? 'Ayarlar yüklenemedi')
     } else {
-      const map: Record<string, string> = {}
-      ;(data as EmailSettingRaw[]).forEach((row) => {
-        map[row.setting_key] = row.setting_value ?? ''
-      })
+      const map = data.reduce<Record<string, string>>((acc, row) => {
+        acc[row.setting_key] = row.setting_value ?? ''
+        return acc
+      }, {})
       setSettings(map)
     }
     setLoading(false)

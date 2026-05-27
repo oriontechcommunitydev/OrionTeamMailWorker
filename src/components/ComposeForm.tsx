@@ -79,14 +79,18 @@ export default function ComposeForm() {
       try {
         const { data, error } = await supabase
           .from('email_settings')
-          .select('sender_name, sender_email')
-          .maybeSingle()
+          .select('setting_key, setting_value')
 
         if (error || !data) return
 
+        const map = data.reduce<Record<string, string>>((acc, row) => {
+          acc[row.setting_key] = row.setting_value ?? ''
+          return acc
+        }, {})
+
         setSenderInfo({
-          name: data.sender_name,
-          email: data.sender_email,
+          name: map['sender_name'] ?? '',
+          email: map['sender_email'] ?? '',
         })
       } catch {
         // ignore

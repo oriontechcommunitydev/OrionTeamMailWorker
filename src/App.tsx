@@ -75,13 +75,18 @@ export default function App() {
         .single()
 
       // Günlük limit
-      const { data: limitData } = await supabase
+      const { data: settingsData, error: settingsErr } = await supabase
         .from('email_settings')
-        .select('setting_value')
-        .eq('setting_key', 'daily_limit')
-        .single()
+        .select('setting_key, setting_value')
 
-      const dailyLimit = parseInt((limitData as { setting_value: string } | null)?.setting_value ?? '300', 10)
+      let dailyLimit = 300
+      if (!settingsErr && settingsData) {
+        const map = settingsData.reduce<Record<string, string>>((acc, row) => {
+          acc[row.setting_key] = row.setting_value ?? ''
+          return acc
+        }, {})
+        dailyLimit = parseInt(map['daily_limit'] ?? '300', 10)
+      }
 
       setStats({
         total_pending: pending ?? 0,
