@@ -118,8 +118,9 @@ export default function App() {
     { key: 'dashboard', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Mail Kuyruğu' },
     { key: 'compose', icon: <Mail className="w-4 h-4" />, label: 'Mail Gönder' },
     { key: 'templates', icon: <FileText className="w-4 h-4" />, label: 'Şablonlar' },
-    { key: 'settings', icon: <Settings className="w-4 h-4" />, label: 'Ayarlar' },
+    
     { key: 'logs', icon: <Activity className="w-4 h-4" />, label: 'Loglar' },
+    { key: 'settings', icon: <Settings className="w-4 h-4" />, label: 'Ayarlar' },
   ]
 
 
