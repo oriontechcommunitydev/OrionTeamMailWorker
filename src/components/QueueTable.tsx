@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient'
 import { EmailQueueItem, StatusFilter } from '../lib/types'
 import StatusBadge from './StatusBadge'
 import PriorityBadge from './PriorityBadge'
-import { ChevronLeft, ChevronRight, RefreshCw, Loader2, Inbox, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, Loader2, Inbox, AlertTriangle, Send, Check } from 'lucide-react'
 
 interface QueueTableProps {
   refreshTrigger?: number
@@ -36,6 +36,8 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sendingId, setSendingId] = useState<number | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchData = useCallback(async (p: number, status: StatusFilter) => {
@@ -65,6 +67,38 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
       setLoading(false)
     }
   }, [])
+
+  // Mail gönderme fonksiyonu
+  const handleSendEmail = async (queueId: number) => {
+    setSendingId(queueId)
+    setSendError(null)
+
+    try {
+      const response = await fetch(`/api/queue/${queueId}/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Mail gönderilemedi')
+      }
+
+      console.log('[QueueTable] Mail gönderildi:', data)
+
+      // Listesini yenile
+      await fetchData(page, statusFilter)
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Bilinmeyen hata'
+      setSendError(errorMsg)
+      console.error('[QueueTable] Gönderim hatası:', errorMsg)
+    } finally {
+      setSendingId(null)
+    }
+  }
 
   // İlk yükleme ve filtre/sayfa değişikliği
   useEffect(() => {
@@ -149,6 +183,14 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
         </div>
       )}
 
+      {/* Gönderim hatası durumu */}
+      {sendError && (
+        <div className="flex items-center gap-2 m-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {sendError}
+        </div>
+      )}
+
       {/* Tablo */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -162,6 +204,7 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Deneme</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Tarih</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700/50">
@@ -177,11 +220,12 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
                   <td className="px-4 py-3.5"><div className="w-20 h-5 bg-gray-700 rounded-full" /></td>
                   <td className="px-4 py-3.5 hidden sm:table-cell"><div className="w-8 h-4 bg-gray-700 rounded" /></td>
                   <td className="px-4 py-3.5 hidden xl:table-cell"><div className="w-32 h-4 bg-gray-700 rounded" /></td>
+                  <td className="px-4 py-3.5"><div className="w-16 h-8 bg-gray-700 rounded" /></td>
                 </tr>
               ))
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-16 text-center">
+                <td colSpan={9} className="px-4 py-16 text-center">
                   <div className="flex flex-col items-center gap-3 text-gray-500">
                     <Inbox className="w-10 h-10 opacity-40" />
                     <p className="text-sm">
@@ -240,6 +284,35 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
                   </td>
                   <td className="px-4 py-3.5 text-gray-500 text-xs hidden xl:table-cell whitespace-nowrap">
                     {formatDate(item.created_at)}
+                  </td>
+                  <td className="px-4 py-3.5">
+                    {item.status === 'pending' ? (
+                      <button
+                        onClick={() => handleSendEmail(item.id)}
+                        disabled={sendingId === item.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Bu maili hemen gönder"
+                      >
+                        {sendingId === item.id ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Gönderiliyor...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" />
+                            Gönder
+                          </>
+                        )}
+                      </button>
+                    ) : item.status === 'sent' ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-700 text-gray-400 text-xs font-medium">
+                        <Check className="w-3.5 h-3.5" />
+                        Gönderilen
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-500">—</div>
+                    )}
                   </td>
                 </tr>
               ))
