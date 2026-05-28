@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ManualEmail } from '../lib/types'
 import { supabase } from '../lib/supabaseClient'
-import { ChevronLeft, ChevronRight, Loader2, Eye, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, Eye, X, Trash2 } from 'lucide-react'
 
 const PAGE_LIMIT = 20
 
@@ -33,6 +33,8 @@ export default function MailHistoryTable() {
   const [limit] = useState<number>(PAGE_LIMIT)
   const [loading, setLoading] = useState<boolean>(true)
   const [selectedMail, setSelectedMail] = useState<ManualEmail | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState<boolean>(false)
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [limit, total])
 
@@ -59,6 +61,33 @@ export default function MailHistoryTable() {
       setTotal(0)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDeleteMail = async (id: number) => {
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/compose-history/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error ?? 'Mail silinemedi')
+      }
+
+      // Listesini yenile
+      await fetchData(page)
+      setDeleteConfirmId(null)
+    } catch (err) {
+      console.error('Mail silme hatası:', err)
+      alert(err instanceof Error ? err.message : 'Silme işlemi başarısız oldu')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -99,7 +128,7 @@ export default function MailHistoryTable() {
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Alıcılar</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">CC</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
             </tr>
           </thead>
 
@@ -161,13 +190,23 @@ export default function MailHistoryTable() {
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedMail(m)}
-                        className="px-3 py-1.5 rounded-xl text-xs font-medium bg-gray-900 border border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
-                      >
-                        👁 Detay
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMail(m)}
+                          className="px-3 py-1.5 rounded-xl text-xs font-medium bg-gray-900 border border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+                        >
+                          👁 Detay
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmId(m.id)}
+                          className="p-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                          title="Sil"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -273,6 +312,57 @@ export default function MailHistoryTable() {
                   className="w-full min-h-[420px] bg-white rounded-xl border border-gray-200"
                   srcDoc={selectedMail.html_content}
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden">
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white">Maili Sil</h3>
+                  <p className="text-xs text-gray-400 mt-1">Bu işlem geri alınamaz</p>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-300">
+                Bu maili kalıcı olarak silmek istediğinize emin misiniz?
+              </p>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmId(null)}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  İptal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMail(deleteConfirmId)}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Siliniyor...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Sil
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

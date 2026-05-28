@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { composeSendRouter } from './routes/composeSend'
 import { queueSendRouter } from './routes/queueSend'
+import { composeHistoryRouter } from './routes/composeHistory'
 import { templatesRouter } from './routes/templates'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -25,6 +26,7 @@ app.get('/health', (_req, res) => {
 // ── API Routes ──────────────────────────────────
 app.use('/api', composeSendRouter)
 app.use('/api', queueSendRouter)
+app.use('/api', composeHistoryRouter)
 app.use('/api', templatesRouter)
 
 

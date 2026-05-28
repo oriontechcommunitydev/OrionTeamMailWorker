@@ -57,3 +57,34 @@ composeHistoryRouter.get('/', async (req, res) => {
   })
 })
 
+/**
+ * Mail geçmişinden belirli bir maili siler
+ * DELETE /compose-history/:id
+ */
+composeHistoryRouter.delete('/:id', async (req, res) => {
+  const id = parseInt(req.params.id as string, 10)
+
+  if (isNaN(id)) {
+    return res.status(400).json({ success: false, error: 'Geçersiz ID' })
+  }
+
+  try {
+    const { error } = await supabase
+      .from('manual_emails')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message })
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Mail başarıyla silindi'
+    })
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Bilinmeyen hata'
+    return res.status(500).json({ success: false, error: errorMsg })
+  }
+})
+

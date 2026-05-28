@@ -191,4 +191,37 @@ router.post('/queue/:id/send', async (req: Request, res: Response): Promise<void
   }
 })
 
+/**
+ * Kuyruktaki belirli bir maili siler
+ * DELETE /queue/:id
+ */
+router.delete('/queue/:id', async (req: Request, res: Response): Promise<void> => {
+  const queueId = parseInt(req.params.id as string, 10)
+
+  if (isNaN(queueId)) {
+    res.status(400).json({ success: false, error: 'Geçersiz ID' })
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('email_queue')
+      .delete()
+      .eq('id', queueId)
+
+    if (error) {
+      res.status(500).json({ success: false, error: error.message })
+      return
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Mail kuyruktan silindi'
+    })
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Bilinmeyen hata'
+    res.status(500).json({ success: false, error: errorMsg })
+  }
+})
+
 export { router as queueSendRouter }
