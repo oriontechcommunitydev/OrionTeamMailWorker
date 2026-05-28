@@ -13,7 +13,7 @@ const router = Router()
  * POST /queue/:id/send
  */
 router.post('/queue/:id/send', async (req: Request, res: Response): Promise<void> => {
-  const queueId = parseInt(req.params.id, 10)
+  const queueId = parseInt(req.params.id as string, 10)
 
   if (isNaN(queueId)) {
     res.status(400).json({ success: false, error: 'Geçersiz ID' })
@@ -128,7 +128,7 @@ router.post('/queue/:id/send', async (req: Request, res: Response): Promise<void
       brevoMessageId = brevoResp.messageId
       console.log(`[queueSend] ID:${queueId} Brevo'ya gönderildi, messageId: ${brevoMessageId}`)
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Brevo'ya gönderilemedi'
+      const errMsg = err instanceof Error ? err.message : 'Brevo ya gönderilemedi'
       console.error(`[queueSend] ID:${queueId} gönderim hatası:`, errMsg)
 
       // Hata durumunu kaydet
