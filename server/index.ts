@@ -30,7 +30,8 @@ const distPath = path.join(__dirname, '../dist')
 app.use(express.static(distPath))
 
 // SPA fallback — tüm bilinmeyen route'lar index.html'e
-app.get('*', (_req, res) => {
+// Express 5 uyumlu (wildcard desteklenmiyor, app.use kullan)
+app.use((_req, res) => {
   res.sendFile(path.join(distPath, 'index.html'))
 })
 
