@@ -3,12 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-
   "scripts": {
-    "dev"         : "vite",
-    "build"       : "vite build && node build-server.mjs",
-    "build:server": "node build-server.mjs",
-    "start"       : "node server.cjs"
+    "dev": "vite",
+    "build": "vite build",
+    "start": "node --loader tsx server/index.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
@@ -22,6 +20,7 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "tailwind-merge": "3.4.0",
+    "tsx": "^4.22.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
