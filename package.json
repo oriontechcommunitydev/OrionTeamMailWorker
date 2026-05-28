@@ -6,8 +6,8 @@
   
   "scripts": {
     "dev"  : "vite",
-    "build": "npx vite build",
-    "start": "npx tsx server/index.ts"
+    "build": "node node_modules/vite/bin/vite.js build",
+    "start": "node node_modules/tsx/dist/cli.mjs server/index.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",

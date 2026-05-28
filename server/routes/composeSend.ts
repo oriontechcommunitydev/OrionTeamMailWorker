@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { supabase } from '../../src/lib/supabaseClient'
-import { loadEmailSettings } from '../../src/lib/settingsLoader'
+import { supabase } from '../lib/supabase'
+import { loadEmailSettings } from '../lib/settingsLoader'
 import { sendEmail } from '../../src/lib/brevo'
 import { wrapWithEmailLayout } from '../../src/lib/templateEngine'
 
