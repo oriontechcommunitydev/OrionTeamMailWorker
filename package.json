@@ -3,11 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  
   "scripts": {
     "dev"  : "vite",
-    "build" : "vite build",
-
-    "start" : "tsx server/index.ts"
+    "build": "npx vite build",
+    "start": "npx tsx server/index.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
