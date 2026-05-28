@@ -92,22 +92,44 @@ router.post('/compose/send', async (req: Request, res: Response): Promise<void> 
 
     for (const recipient of body.to) {
       try {
-        const brevoResp = await sendEmail(
-          {
-            sender     : { name: settings.sender_name, email: settings.sender_email },
-            to         : [{ email: recipient.email, name: recipient.name }],
-            cc         : body.cc ?? [],
-            subject    : body.subject,
-            htmlContent: wrappedHtml,
+        // Payload hazırla
+        const payload: {
+          sender     : { name: string; email: string }
+          to         : Array<{ email: string; name: string }>
+          subject    : string
+          htmlContent: string
+          cc?        : Array<{ email: string; name: string }>
+        } = {
+          sender     : {
+            name : settings.sender_name,
+            email: settings.sender_email
           },
-          settings.brevo_api_key
-        )
+          to         : [{ email: recipient.email, name: recipient.name }],
+          subject    : body.subject,
+          htmlContent: wrappedHtml,
+        }
+
+        // ✅ CC varsa ekle, yoksa hiç gönderme
+        if (body.cc && body.cc.length > 0) {
+          payload.cc = body.cc
+        }
+
+        const brevoResp = await sendEmail(payload, settings.brevo_api_key)
+
         messageIds.push(brevoResp.messageId)
-        results.push({ email: recipient.email, success: true, messageId: brevoResp.messageId })
+        results.push({
+          email    : recipient.email,
+          success  : true,
+          messageId: brevoResp.messageId
+        })
         console.log('[composeSend] gönderildi:', recipient.email)
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : 'Gönderilemedi'
-        results.push({ email: recipient.email, success: false, error: errMsg })
+        results.push({
+          email  : recipient.email,
+          success: false,
+          error  : errMsg
+        })
         console.error('[composeSend] gönderim hatası:', recipient.email, errMsg)
       }
     }
