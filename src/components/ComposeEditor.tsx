@@ -91,9 +91,9 @@ export default function ComposeEditor({ value, onChange }: ComposeEditorProps) {
       const { data, error } = await supabase
         .from('email_templates')
         .select('html_content')
-        // Mevcut şemaya göre alan adı: template_key (repo server tarafında da template_key kullanılıyor)
+        // Mevcut şemaya göre alan adı: template_code (repo server tarafında da template_code kullanılıyor)
         // Eğer tabloda farklı isim varsa, tek noktadan güncellenir.
-        .eq('template_key', templateKey)
+        .eq('template_code', templateKey)
         .maybeSingle()
 
       if (error || !data) return
