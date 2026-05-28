@@ -4,14 +4,20 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "start": "node --loader tsx server/index.ts"
+    "dev"  : "vite",
+    "build" : "vite build",
+
+    "start" : "tsx server/index.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
+    "@tailwindcss/vite": "4.1.17",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/node": "22.19.17",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.1",
     "axios": "^1.16.1",
     "clsx": "2.1.1",
     "cors": "^2.8.6",
@@ -20,18 +26,13 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "tailwind-merge": "3.4.0",
-    "tsx": "^4.22.3",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "4.1.17",
-    "@types/node": "22.19.17",
-    "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "5.1.1",
     "tailwindcss": "4.1.17",
+    "tsx": "^4.22.3",
     "typescript": "5.9.3",
     "vite": "7.3.2",
-    "vite-plugin-singlefile": "2.3.0"
+    "vite-plugin-singlefile": "2.3.0",
+    "zod": "^4.4.3"
   }
 }
+
+
