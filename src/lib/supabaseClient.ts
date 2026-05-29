@@ -4,8 +4,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 // Vite env değişkenleri — VITE_ prefix gerekli (browser-safe)
-const supabaseUrl = (import.meta as ImportMeta & { env: Record<string, string> }).env['VITE_SUPABASE_URL'] as string | undefined
-const supabaseAnonKey = (import.meta as ImportMeta & { env: Record<string, string> }).env['VITE_SUPABASE_ANON_KEY'] as string | undefined
+const supabaseUrl = (import.meta as ImportMeta & { env: Record<string, string> }).env['SUPABASE_URL'] as string | undefined
+const supabaseAnonKey = (import.meta as ImportMeta & { env: Record<string, string> }).env['SUPABASE_ANON_KEY'] as string | undefined
 
 // Fallback: env yoksa hardcoded değerleri kullan (geliştirme kolaylığı için)
 const SUPABASE_URL = supabaseUrl ?? 'https://vbokappwelyrvoxnkigp.supabase.co'
