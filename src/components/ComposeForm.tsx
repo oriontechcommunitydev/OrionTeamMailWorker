@@ -225,12 +225,16 @@ export default function ComposeForm() {
           <div className="text-sm font-medium text-gray-200">Gönderen</div>
           <div className="bg-gray-900 border border-gray-700 rounded-xl p-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-semibold">
-                {senderInfo?.name?.slice(0, 1).toUpperCase() ?? '—'}
+              <div className="w-9 h-9 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center overflow-hidden">
+                <img
+                  src="https://vbokappwelyrvoxnkigp.supabase.co/storage/v1/object/public/Orion%20Tech%20Community/orion-tech-community-logo/1000232283.png"
+                  alt="Orion Tech Community"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div>
                 <div className="text-sm text-white font-medium">{senderInfo ? senderInfo.name : 'Yükleniyor...'}</div>
-                <div className="text-xs text-gray-400 font-mono">{senderInfo ? senderInfo.email : ''}</div>
+                {/*<div className="text-xs text-gray-400 font-mono">{senderInfo ? senderInfo.email : ''}</div>*/}
               </div>
             </div>
             <div className="text-xs text-gray-500">🔒</div>
