@@ -4,8 +4,10 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { composeSendRouter } from './routes/composeSend'
 import { queueSendRouter } from './routes/queueSend'
+import { queueEnqueueManualRouter } from './routes/queueEnqueueManual'
 import { composeHistoryRouter } from './routes/composeHistory'
 import { templatesRouter } from './routes/templates'
+
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -26,8 +28,10 @@ app.get('/health', (_req, res) => {
 // ── API Routes ──────────────────────────────────
 app.use('/api', composeSendRouter)
 app.use('/api', queueSendRouter)
+app.use('/api', queueEnqueueManualRouter)
 app.use('/api', composeHistoryRouter)
 app.use('/api', templatesRouter)
+
 
 
 // ── Frontend Static Files ───────────────────────

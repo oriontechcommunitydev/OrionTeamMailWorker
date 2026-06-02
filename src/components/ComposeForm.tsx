@@ -12,6 +12,7 @@ import { Loader2, Trash2 } from 'lucide-react'
 
 
 
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function isValidEmail(email: string): boolean {
@@ -71,6 +72,8 @@ export default function ComposeForm() {
   const [isSending, setIsSending] = useState<boolean>(false)
   const [sendResult, setSendResult] = useState<SendResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [enqueueResult, setEnqueueResult] = useState<string | null>(null)
+
 
 
 
@@ -142,6 +145,7 @@ export default function ComposeForm() {
     setSubject('')
     setHtmlContent('')
     setSendResult(null)
+    setEnqueueResult(null)
     setError(null)
   }
 
@@ -149,10 +153,67 @@ export default function ComposeForm() {
 
 
 
-  const handleSend = async () => {
+
+  const handleEnqueue = async () => {
     if (!canSend) return
 
     setIsSending(true)
+    setError(null)
+    setSendResult(null)
+    setEnqueueResult(null)
+
+    try {
+      const toPayload: Array<{ email: string; name: string; type: Recipient['type'] }> = toRecipients.map((r) => ({
+        email: r.email,
+        name: r.name,
+        type: r.type,
+      }))
+
+      const ccPayload: Array<{ email: string; name: string }> = showCC
+        ? ccRecipients.map((r) => ({ email: r.email, name: r.name }))
+        : []
+
+      const resp = await fetch('/api/queue/enqueue-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: toPayload,
+          cc: ccPayload,
+          subject: subject.trim(),
+          html_content: htmlContent,
+        }),
+      })
+
+      const text = await resp.text()
+      if (!text || text.trim() === '') throw new Error('Sunucudan boş yanıt geldi')
+
+      let data: { success: boolean; error?: string; queue_ids?: number[]; message?: string }
+      try {
+        data = JSON.parse(text)
+      } catch {
+        throw new Error(`Yanıt işlenemedi: ${text.slice(0, 200)}`)
+      }
+
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error ?? `HTTP ${resp.status}`)
+      }
+
+      setEnqueueResult(data.message ?? 'Mail kuyruga eklendi')
+      handleClear()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kuyruğa ekleme hatası')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  const handleSend = async () => {
+    if (!canSend) return
+
+    setEnqueueResult(null)
+
+    setIsSending(true)
+
 
     setError(null)
     setSendResult(null)
@@ -293,7 +354,12 @@ export default function ComposeForm() {
           <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl p-3">{error}</div>
         )}
 
+        {enqueueResult && (
+          <div className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">{enqueueResult}</div>
+        )}
+
         {sendResult && <SendResultPanel result={sendResult} />}
+
 
         <div className="flex flex-wrap items-center gap-2 justify-between">
           <button
@@ -308,10 +374,28 @@ export default function ComposeForm() {
 
           <button
             type="button"
+            onClick={() => void handleEnqueue()}
+            disabled={!canSend}
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:hover:bg-gray-700 text-white font-medium transition-colors"
+            title="Maili kuyruga ekler (worker gönderir)"
+          >
+            {isSending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Kuyruğa ekleniyor...
+              </>
+            ) : (
+              <>📥 Kuyruğa Ekle ({toRecipients.length} kişi)</>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={() => void handleSend()}
             disabled={!canSend}
             className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white font-medium transition-colors"
           >
+
             {isSending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
