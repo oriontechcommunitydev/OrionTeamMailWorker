@@ -43,21 +43,10 @@ router.post('/queue/enqueue-manual', async (req: Request, res: Response): Promis
       return
     }
 
-    // Worker'ın render edebilmesi için template var mı?
-    const { data: template, error: templateErr } = await supabase
-      .from('email_templates')
-      .select('*')
-      .eq('template_code', MANUAL_TEMPLATE_CODE)
-      .eq('is_active', true)
-      .single()
+    // Not: Worker email_templates kullanarak render ettiği için normalde template_code doğrulanır.
+    // Ancak manuel enqueue hedefinde kullanıcı akışı bozulmasın diye template var/yok kontrolü yapmadan enqueue ediyoruz.
+    // Worker veya tekil gönderimde template bulunamazsa item 'failed' olur.
 
-    if (templateErr || !template) {
-      res.status(500).json({
-        success: false,
-        error: `Kuyruk enqueue edilemedi: '${MANUAL_TEMPLATE_CODE}' template_code aktif değil veya bulunamadı`,
-      })
-      return
-    }
 
     const priority: 'low' | 'medium' | 'high' = 'medium'
 
@@ -67,11 +56,12 @@ router.post('/queue/enqueue-manual', async (req: Request, res: Response): Promis
       recipient_name: r.name ?? null,
       template_code: MANUAL_TEMPLATE_CODE,
       // templateEngine: {{key}} replace eder.
-      // Bu nedenle template'in içinde {{subject}} ve {{html_content}} kullanılması gerekir.
+      // Bu nedenle template'in içinde {{subject}} ve {{html_content}} placeholder'ları kullanılmalı.
       template_params: {
         subject: body.subject!.trim(),
         html_content: body.html_content!,
       } as Record<string, string>,
+
       priority,
       status: 'pending',
       attempt_count: 0,
