@@ -51,12 +51,13 @@ router.post('/queue/enqueue-manual', async (req: Request, res: Response): Promis
     const priority: 'low' | 'medium' | 'high' = 'medium'
 
     // Her To alıcı için ayrı queue item ekleyelim (queue worker tek recipient gönderiyor)
+    // email_queue table'ında template_code foreign key constraint'i var.
+    // Bu yüzden manuel template_code için zorunlu olarak email_templates tablosunda aktif bir kayıt olmalı.
+    // Hataları HTTP 500 yerine kullanıcıya anlaşılır dönelim.
     const insertRows = body.to.map((r) => ({
       recipient_email: r.email,
       recipient_name: r.name ?? null,
       template_code: MANUAL_TEMPLATE_CODE,
-      // templateEngine: {{key}} replace eder.
-      // Bu nedenle template'in içinde {{subject}} ve {{html_content}} placeholder'ları kullanılmalı.
       template_params: {
         subject: body.subject!.trim(),
         html_content: body.html_content!,
@@ -70,6 +71,7 @@ router.post('/queue/enqueue-manual', async (req: Request, res: Response): Promis
       error_message: null,
       brevo_message_id: null,
     }))
+
 
     const { data: inserted, error: insertErr } = await supabase
       .from('email_queue')
