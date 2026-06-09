@@ -205,17 +205,17 @@ export default function RecipientInput({ value, onChange, placeholder }: Recipie
               })}
             </div>
           )}
-
-          {EMAIL_REGEX.test(query.trim()) && (
-            <button
-              type="button"
-              onClick={handleExternalFromInput}
-              className="w-full text-left px-3 py-2 bg-gray-800 hover:bg-gray-700 border-t border-gray-700"
-            >
-              <div className="text-sm text-indigo-300">📧 "{query.trim()}" dış adres ekle</div>
-            </button>
-          )}
         </div>
+      )}
+
+      {EMAIL_REGEX.test(query.trim()) && query.trim().length >= 2 && (
+        <button
+          type="button"
+          onClick={handleExternalFromInput}
+          className="w-full text-left px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl mt-2"
+        >
+          <div className="text-sm text-indigo-300">📧 "{query.trim()}" dış adres ekle</div>
+        </button>
       )}
 
       <div className="text-[11px] text-gray-600">Enter/virgül ile dış adres ekleyebilirsiniz.</div>
