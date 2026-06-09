@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import type { Recipient, SendResult } from '../lib/types'
+import type { Recipient, SendResult, EmailTemplate } from '../lib/types'
 import RecipientInput from './RecipientInput'
 import ComposeEditor from './ComposeEditor'
 import { Loader2, Trash2 } from 'lucide-react'
@@ -74,6 +74,10 @@ export default function ComposeForm() {
   const [error, setError] = useState<string | null>(null)
   const [enqueueResult, setEnqueueResult] = useState<string | null>(null)
 
+  const [templates, setTemplates] = useState<EmailTemplate[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState<boolean>(true)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null)
+
 
 
 
@@ -101,6 +105,35 @@ export default function ComposeForm() {
     }
 
     void load()
+  }, [])
+
+
+  // ── Şablonları Yükle ──────────────────────────────────────
+  useEffect(() => {
+    const loadTemplates = async () => {
+      setLoadingTemplates(true)
+      try {
+        const { data, error } = await supabase
+          .from('email_templates')
+          .select('*')
+          .eq('is_active', true)
+          .order('template_name', { ascending: true })
+
+        if (error || !data) {
+          console.error('Şablonlar yüklenemedi:', error)
+          setTemplates([])
+        } else {
+          setTemplates(data as EmailTemplate[])
+        }
+      } catch (err) {
+        console.error('Şablonları yükleme hatası:', err)
+        setTemplates([])
+      } finally {
+        setLoadingTemplates(false)
+      }
+    }
+
+    void loadTemplates()
   }, [])
 
 
@@ -147,6 +180,17 @@ export default function ComposeForm() {
     setSendResult(null)
     setEnqueueResult(null)
     setError(null)
+    setSelectedTemplateId(null)
+  }
+
+  // ── Şablon Seçildiğinde ──────────────────────────────────────
+  const handleSelectTemplate = (templateId: number) => {
+    const template = templates.find((t) => t.id === templateId)
+    if (!template) return
+
+    setSelectedTemplateId(templateId)
+    setSubject(template.subject)
+    setHtmlContent(template.html_content)
   }
 
 
@@ -300,6 +344,39 @@ export default function ComposeForm() {
             </div>
             <div className="text-xs text-gray-500">🔒</div>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-200">
+            📋 Şablon (İsteğe Bağlı)
+          </label>
+          <select
+            value={selectedTemplateId ?? ''}
+            onChange={(e) => {
+              if (e.target.value) {
+                handleSelectTemplate(Number(e.target.value))
+              } else {
+                setSelectedTemplateId(null)
+              }
+            }}
+            disabled={loadingTemplates}
+            className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-50"
+          >
+            <option value="">
+              {loadingTemplates ? 'Şablonlar yükleniyor...' : 'Şablon seçin (Konu ve İçerik doldurulacak)'}
+            </option>
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.template_name} - {template.subject.substring(0, 40)}
+                {template.subject.length > 40 ? '...' : ''}
+              </option>
+            ))}
+          </select>
+          {templates.length === 0 && !loadingTemplates && (
+            <p className="text-xs text-gray-400">
+              📌 Şablon bulunamadı. Şablonlar panelinden yeni şablon oluşturun.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
