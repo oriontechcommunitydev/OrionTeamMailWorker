@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabaseClient'
 import { EmailQueueItem, StatusFilter } from '../lib/types'
 import StatusBadge from './StatusBadge'
 import PriorityBadge from './PriorityBadge'
-import { ChevronLeft, ChevronRight, RefreshCw, Loader2, Inbox, AlertTriangle, Send, Check, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, Loader2, Inbox, AlertTriangle, Send, Check, Trash2, Eye, X } from 'lucide-react'
+
 
 interface QueueTableProps {
   refreshTrigger?: number
@@ -41,6 +42,23 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState<boolean>(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  type QueueDetail = {
+    id: number
+    status: EmailQueueItem['status']
+    created_at: string
+    sent_at: string | null
+    error_message: string | null
+    recipient_email: string
+    recipient_name: string | null
+    subject: string
+    html_content: string
+  }
+
+  const [selectedDetail, setSelectedDetail] = useState<QueueDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
+
 
   const fetchData = useCallback(async (p: number, status: StatusFilter) => {
     setLoading(true)
@@ -103,7 +121,36 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
   }
 
   // Mail silme fonksiyonu
+  const handleOpenDetail = async (queueId: number) => {
+    setDetailLoading(true)
+    setDetailError(null)
+    try {
+      const response = await fetch(`/api/queue/${queueId}/detail`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Detay alınamadı')
+      }
+
+      setSelectedDetail(payload.data as QueueDetail)
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Bilinmeyen hata'
+      setDetailError(errorMsg)
+      console.error('[QueueTable] Detay hatası:', errorMsg)
+      setSelectedDetail(null)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
   const handleDeleteQueue = async (queueId: number) => {
+
     setDeleting(true)
     try {
       const response = await fetch(`/api/queue/${queueId}`, {
@@ -348,6 +395,14 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
                         <div className="text-xs text-gray-500">—</div>
                       )}
                       <button
+                        onClick={() => handleOpenDetail(item.id)}
+                        disabled={detailLoading}
+                        className="p-1.5 rounded-lg text-xs text-gray-300 hover:bg-gray-700/40 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Detay"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => setDeleteConfirmId(item.id)}
                         disabled={deleting}
                         className="p-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -355,6 +410,7 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+
                     </div>
                   </td>
                 </tr>
@@ -405,8 +461,78 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
         </p>
       </div>
 
+      {/* Detail Modal */}
+      {selectedDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-5xl bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between gap-3 p-4 border-b border-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-white font-semibold">📧 Mail Detayı</span>
+                <span className="text-xs text-gray-400">#{selectedDetail.id}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDetail(null)}
+                className="w-8 h-8 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-3">
+                  <div className="text-xs text-gray-400">Konu</div>
+                  <div className="text-sm text-white font-medium break-words">{selectedDetail.subject}</div>
+                </div>
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-3">
+                  <div className="text-xs text-gray-400">Tarih</div>
+                  <div className="text-sm text-gray-200">{formatDate(selectedDetail.created_at)}</div>
+                </div>
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-3">
+                  <div className="text-xs text-gray-400">Durum</div>
+                  <StatusBadge status={selectedDetail.status} />
+                </div>
+              </div>
+
+              <div className="bg-gray-800 border border-gray-700 rounded-xl p-3">
+                <div className="text-xs text-gray-400">Alıcı</div>
+                <div className="mt-2">
+                  <div className="text-xs text-gray-200 font-mono">{selectedDetail.recipient_email}</div>
+                  {selectedDetail.recipient_name && (
+                    <div className="text-xs text-gray-400 mt-1">{selectedDetail.recipient_name}</div>
+                  )}
+                </div>
+
+                {selectedDetail.error_message && (
+                  <div className="mt-3">
+                    <div className="text-xs text-red-300">Hata</div>
+                    <div className="mt-1 text-xs text-red-200 break-words">{selectedDetail.error_message}</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-xs text-gray-400">— HTML Önizleme —</div>
+                <iframe
+                  title="Mail detay önizleme"
+                  sandbox="allow-same-origin"
+                  className="w-full min-h-[420px] bg-white rounded-xl border border-gray-200"
+                  srcDoc={selectedDetail.html_content}
+                />
+              </div>
+
+              {detailError && (
+                <div className="text-sm text-red-400">{detailError}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {deleteConfirmId !== null && (
+
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-sm bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden">
             <div className="p-6 space-y-4">
@@ -435,7 +561,8 @@ export default function QueueTable({ refreshTrigger }: QueueTableProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDeleteQueue(deleteConfirmId)}
+                  onClick={() => handleDeleteQueue(deleteConfirmId ?? -1)}
+
                   disabled={deleting}
                   className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >

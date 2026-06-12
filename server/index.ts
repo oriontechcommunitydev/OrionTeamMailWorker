@@ -7,9 +7,12 @@ import { queueSendRouter } from './routes/queueSend'
 import { queueEnqueueManualRouter } from './routes/queueEnqueueManual'
 import { composeHistoryRouter } from './routes/composeHistory'
 import { templatesRouter } from './routes/templates'
+import { queueDetailRouter } from './routes/queueDetail'
+
 
 
 const __filename = fileURLToPath(import.meta.url)
+
 const __dirname = path.dirname(__filename)
 
 const app = express()
@@ -31,10 +34,12 @@ app.use('/api', queueSendRouter)
 app.use('/api', queueEnqueueManualRouter)
 app.use('/api', composeHistoryRouter)
 app.use('/api', templatesRouter)
+app.use('/api', queueDetailRouter)
 
 
 
 // ── Frontend Static Files ───────────────────────
+
 // Vite build çıktısını serve et
 const distPath = path.join(__dirname, '../dist')
 app.use(express.static(distPath))
