@@ -74,11 +74,18 @@ export default function MailHistoryTable() {
         },
       })
 
-      const result = await response.json()
+      // SPA fallback bazen HTML döndürebilir. JSON parse etmeden önce içeriği kontrol edelim.
+      const contentType = response.headers.get('content-type') ?? ''
+      const isJson = contentType.includes('application/json')
+
+      const result = isJson ? await response.json() : null
+      const text = !isJson ? await response.text().catch(() => '') : ''
 
       if (!response.ok) {
-        throw new Error(result.error ?? 'Mail silinemedi')
+        const msg = (result && 'error' in result ? (result as any).error : null) ?? (text || null) ?? 'Mail silinemedi'
+        throw new Error(typeof msg === 'string' ? msg : 'Mail silinemedi')
       }
+
 
       // Listesini yenile
       await fetchData(page)
